@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glow Meter</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Glow Meter">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f6dbe8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#22131c" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cherry+Swash:wght@400;700&family=Nunito:wght@400;600;700;800&family=Caveat:wght@500;700&display=swap">
+<style>
+/* Phone-first single column: meter on top, one big listen button, laugh buttons, then today's moments and the week. */
+:root{
+  --bg:#fcEEF3; --bg2:#f6dbe8; --card:#ffffff; --ink:#4a2a3b; --soft:#8a6577;
+  --rose:#d6457f; --rose-2:#f39bbd; --gold:#e9a93a; --lilac:#a98ad9; --rain:#7486a3;
+  --line:#efd3df; --chip-pos:#fde3ee; --chip-neg:#e6ebf3;
+  --display:"Cherry Swash", Georgia, serif;
+  --body:"Nunito", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --hand:"Caveat", "Bradley Hand", cursive;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#22131c; --bg2:#2e1826; --card:#32202b; --ink:#fbe6ef; --soft:#c9a6b8;
+  --rose:#ff78ac; --rose-2:#b85a85; --gold:#ffc65e; --lilac:#c4aaf2; --rain:#9fb0cc;
+  --line:#4a2f3e; --chip-pos:#4a2338; --chip-neg:#2c3442; color-scheme:dark }}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:linear-gradient(180deg,var(--bg2),var(--bg) 340px) no-repeat,var(--bg);color:var(--ink);font-family:var(--body);font-size:19px;line-height:1.5}
+.wrap{max-width:560px;margin:0 auto;padding-top:calc(env(safe-area-inset-top,0px) + 14px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 40px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+header{text-align:center}
+h1{font-family:var(--display);font-weight:700;font-size:2.6rem;margin:0;line-height:1.05;color:var(--rose)}
+.date{font-family:var(--hand);font-size:1.6rem;color:var(--soft);line-height:1.2}
+h2{font-family:var(--display);font-weight:400;font-size:1.5rem;margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:20px}
+
+.gauge{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px}
+.gauge svg{width:100%;max-width:420px;height:auto;overflow:visible}
+.score{font-family:var(--display);font-weight:700;font-size:3.8rem;line-height:1;font-variant-numeric:tabular-nums;margin-top:-50px}
+.mood{font-family:var(--hand);font-size:2.1rem;font-weight:700;color:var(--rose);line-height:1.1;text-align:center}
+.moodnote{color:var(--soft);font-size:1rem;text-align:center;max-width:32ch}
+#needle{transition:transform 1.2s cubic-bezier(.3,1.4,.5,1)}
+#fillArc,#haloArc{transition:stroke-dashoffset 1.2s cubic-bezier(.3,1.2,.5,1)}
+.pop{position:absolute;font-family:var(--hand);font-weight:700;font-size:2.2rem;pointer-events:none;animation:floatUp 1.6s ease-out forwards}
+@keyframes floatUp{from{opacity:1;transform:translateY(0) scale(.8)}to{opacity:0;transform:translateY(-90px) scale(1.3)}}
+@keyframes twinkle{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
+.spark{transform-box:fill-box;transform-origin:center;animation:twinkle 2.6s ease-in-out infinite}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%;margin-top:12px}
+.stat{text-align:center;border-radius:18px;padding:8px 2px;background:var(--bg)}
+.stat b{display:block;font-size:1.6rem;font-variant-numeric:tabular-nums;line-height:1.2}
+.stat span{font-size:.7rem;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;font-weight:800;line-height:1.2;display:block}
+.stat.pos b{color:var(--rose)} .stat.neg b{color:var(--rain)} .stat.laugh b{color:var(--gold)} .stat.gift b{color:var(--lilac)}
+
+.controls{display:flex;flex-direction:column;gap:14px}
+button{font-family:var(--body);font-weight:800;font-size:1.1rem;border:none;cursor:pointer;border-radius:999px;padding:14px 20px;color:var(--ink);background:var(--bg);transition:transform .15s}
+button:active{transform:scale(.97)}
+button:focus-visible,textarea:focus-visible{outline:3px solid var(--lilac);outline-offset:3px}
+#micBtn{background:var(--rose);color:#fff;font-size:1.35rem;padding:20px;display:flex;align-items:center;justify-content:center;gap:12px;width:100%}
+#micBtn.on{animation:breathe 1.8s ease-in-out infinite}
+@keyframes breathe{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--rose) 50%,transparent)}50%{box-shadow:0 0 0 14px color-mix(in srgb,var(--rose) 0%,transparent)}}
+.pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.pill{font-size:.85rem;font-weight:800;border-radius:999px;padding:4px 12px;background:var(--bg);color:var(--soft)}
+.pill.ok{background:var(--chip-pos);color:var(--rose)}
+.pill.warn{background:var(--chip-neg);color:var(--rain)}
+.micstatus{color:var(--soft);font-size:1rem;text-align:center}
+.live{font-family:var(--hand);font-size:1.6rem;min-height:1.5em;text-align:center;line-height:1.2}
+.laughs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.laughs button{border-radius:22px;padding:14px 8px;line-height:1.2;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:1.05rem}
+.laughs small{font-weight:600;font-size:.85rem;color:var(--soft)}
+#laughBtn{background:color-mix(in srgb,var(--gold) 22%,var(--card))}
+#madeBtn{background:color-mix(in srgb,var(--lilac) 24%,var(--card))}
+.typebox{display:flex;gap:8px}
+textarea{flex:1;min-width:0;font:inherit;font-size:1.05rem;border-radius:18px;border:1px solid var(--line);padding:12px 14px;resize:none;height:56px;background:var(--bg);color:var(--ink)}
+#addBtn{background:var(--ink);color:var(--card);flex:none}
+
+.banner{font-size:.95rem;background:color-mix(in srgb,var(--gold) 18%,var(--card));border-radius:16px;padding:10px 14px}
+.moments{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.moment{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:12px 0;border-bottom:1px dashed var(--line)}
+.moment:last-child{border-bottom:none}
+.moment time{font-size:.8rem;color:var(--soft);font-variant-numeric:tabular-nums;padding-top:4px;min-width:3.9em}
+.txt{min-width:0;overflow-wrap:anywhere;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.tag{font-family:var(--hand);font-size:1.4rem;font-weight:700;line-height:1.1}
+.swap{font-size:.8rem;padding:5px 12px;background:var(--bg);color:var(--soft)}
+.delta{font-weight:800;font-variant-numeric:tabular-nums;border-radius:999px;padding:2px 10px;font-size:.95rem}
+.delta.up{background:var(--chip-pos);color:var(--rose)} .delta.down{background:var(--chip-neg);color:var(--rain)} .delta.zero{background:var(--bg);color:var(--soft)}
+mark.p{background:var(--chip-pos);color:var(--rose);border-radius:6px;padding:0 3px;font-weight:700}
+mark.n{background:var(--chip-neg);color:var(--rain);border-radius:6px;padding:0 3px;font-weight:700}
+.ex{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gold);font-weight:800}
+.empty{color:var(--soft);font-family:var(--hand);font-size:1.5rem;text-align:center;padding:8px}
+
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:140px;margin-top:10px}
+.bar{display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
+.bar i{display:block;width:72%;max-width:36px;border-radius:12px 12px 6px 6px;background:linear-gradient(to top,var(--rose-2),var(--rose));min-height:4px}
+.bar.today i{background:linear-gradient(to top,var(--rose),var(--gold))}
+.bar.none i{background:var(--line)}
+.bar b{font-size:.85rem;font-variant-numeric:tabular-nums}
+.bar span{font-size:.72rem;color:var(--soft);font-weight:800;text-transform:uppercase}
+.how{color:var(--soft);font-size:.92rem;margin:0}
+.foot{display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center}
+#resetWrap button{font-size:.95rem;padding:10px 18px}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;font-size:.95rem}
+@media (max-width:380px){.stats{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Glow Meter</h1>
+    <div class="date" id="today"></div>
+  </header>
+
+  <section class="card gauge" aria-label="Today's glow">
+    <svg viewBox="0 0 320 200" role="img" aria-label="Glow meter showing today's positivity">
+      <defs>
+        <linearGradient id="glowGrad" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stop-color="var(--rain)"/>
+          <stop offset=".45" stop-color="var(--lilac)"/>
+          <stop offset=".75" stop-color="var(--rose)"/>
+          <stop offset="1" stop-color="var(--gold)"/>
+        </linearGradient>
+        <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+      </defs>
+      <path d="M30 170 A130 130 0 0 1 290 170" fill="none" stroke="var(--line)" stroke-width="26" stroke-linecap="round"/>
+      <path id="haloArc" d="M30 170 A130 130 0 0 1 290 170" fill="none" stroke="url(#glowGrad)" stroke-width="30" stroke-linecap="round" filter="url(#soft)" opacity=".45" pathLength="100" stroke-dasharray="100" stroke-dashoffset="50"/>
+      <path id="fillArc" d="M30 170 A130 130 0 0 1 290 170" fill="none" stroke="url(#glowGrad)" stroke-width="26" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="50"/>
+      <text x="30" y="196" text-anchor="middle" font-size="12" fill="var(--soft)" font-family="Nunito, sans-serif" font-weight="700">0</text>
+      <text x="290" y="196" text-anchor="middle" font-size="12" fill="var(--soft)" font-family="Nunito, sans-serif" font-weight="700">100</text>
+      <g fill="var(--gold)">
+        <path class="spark" style="animation-delay:.2s" d="M290 40 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z"/>
+        <path class="spark" style="animation-delay:1.1s" d="M38 70 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z"/>
+        <path class="spark" style="animation-delay:1.8s" fill="var(--rose)" d="M160 4 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2z"/>
+      </g>
+      <g id="needle" style="transform-origin:160px 170px;transform:rotate(0deg)">
+        <line x1="160" y1="170" x2="160" y2="66" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"/>
+        <path d="M160 40 l6 14 15 2 -11 10 3 15 -13 -8 -13 8 3 -15 -11 -10 15 -2z" fill="var(--gold)" stroke="var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>
+      </g>
+      <circle cx="160" cy="170" r="10" fill="var(--ink)"/>
+    </svg>
+    <div class="score" id="score" aria-live="polite">50</div>
+    <div class="mood" id="mood">Sunbeam</div>
+    <div class="moodnote" id="moodnote"></div>
+    <div class="stats">
+      <div class="stat pos"><b id="sPos">0</b><span>Kind words</span></div>
+      <div class="stat neg"><b id="sNeg">0</b><span>Gloomy words</span></div>
+      <div class="stat laugh"><b id="sLaugh">0</b><span>Laughs</span></div>
+      <div class="stat gift"><b id="sGift">0</b><span>Laughs given</span></div>
+    </div>
+  </section>
+
+  <section class="card controls" aria-label="Add glow">
+    <button id="micBtn" type="button" aria-pressed="false">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="2" width="8" height="13" rx="4" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>
+      <span id="micLabel">Start glowing</span>
+    </button>
+    <div class="pills">
+      <span class="pill" id="pillWords">Word listener: off</span>
+      <span class="pill" id="pillLaugh">Laugh detector: off</span>
+    </div>
+    <div class="micstatus" id="micStatus">Tap the button, then just talk like you normally would. Keep the app open on your screen while it listens.</div>
+    <div class="live" id="live" aria-live="polite"></div>
+    <div class="laughs">
+      <button id="laughBtn" type="button">I laughed! <small>+8 glow</small></button>
+      <button id="madeBtn" type="button">I made someone laugh! <small>+12 glow</small></button>
+    </div>
+    <div class="typebox">
+      <label for="typeIn" style="position:absolute;left:-9999px">Something you said</label>
+      <textarea id="typeIn" placeholder="Or type something you said..."></textarea>
+      <button id="addBtn" type="button">Add</button>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Today's moments" style="display:flex;flex-direction:column;gap:10px">
+    <h2>Today's moments</h2>
+    <div class="banner" id="exBanner" hidden>These are examples so you can see how it works. They vanish when you add your first real moment.</div>
+    <ul class="moments" id="moments"></ul>
+  </section>
+
+  <section class="card" aria-label="This week">
+    <h2>Your week of glow</h2>
+    <div class="week" id="week"></div>
+  </section>
+
+  <div class="foot">
+    <p class="how">Every day starts at 50. Kind words add 3, gloomy words take away 4, a laugh adds 8 and making someone laugh adds 12. When the laugh detector hears a laugh, tap "Someone else laughed" on it if it wasn't you.</p>
+    <div id="resetWrap"></div>
+  </div>
+</div>
+
+<script>
+const POS = "love loved lovely loving adore amazing awesome beautiful best better blessed bright brilliant calm care caring celebrate cheer cheerful comfort cozy cute delight delighted delightful enjoy enjoyed excellent excited exciting fabulous fantastic favorite fine fun funny generous gentle glad glow good gorgeous grace grateful great happy healthy heart helpful helped hope hopeful hug hugs incredible inspire inspired joy joyful kind kindness laugh laughing laughed lucky magic magical marvelous nice okay peace peaceful perfect pleasant pleasure precious pretty proud relaxed safe smile smiling smiled sparkle special splendid strong success sunny super support sweet terrific thank thanks thankful thrilled treasure trust welcome win wonderful wow yay yes appreciate appreciated appreciation brave absolutely beloved bliss friendly friend friends gift kiss sunshine warm cool".split(" ");
+const NEG = "angry annoyed annoying awful bad boring broke broken cry crying disgusting dumb fail failed fear frustrated frustrating gross hate hated hates horrible hurt idiot irritated jealous lazy lonely mad mean miserable nasty nightmare pathetic pain rude sad scared shut sick stupid sucks terrible tired ugly unfair unhappy upset useless worried worry worse worst wrong ugh exhausted stressed stress disappointed disappointing ridiculous ruined complain whatever damn hell crap".split(" ");
+const NEGATORS = new Set("not no never don't dont isn't isnt wasn't wasnt can't cant won't wont didn't didnt doesn't doesnt aren't arent nothing hardly".split(" "));
+const POSSET = new Set(POS), NEGSET = new Set(NEG);
+const LAUGH_RE = /\b(?:(?:ha){2,}h?|(?:he){2,}|lol+|lmao)\b/gi;
+const LAUGH_LABELS = ["laughter","giggle","chuckle, chortle","belly laugh","snicker","baby laughter"];
+const KEY = "glow-meter-v1";
+const W = {pos:3, neg:-4, laugh:8, gift:12};
+
+let state = {days:{}};
+try{ const raw = localStorage.getItem(KEY); if(raw) state = JSON.parse(raw) || state; }catch(e){}
+if(!state.days) state.days = {};
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+const dkey = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const todayKey = () => dkey(new Date());
+function today(){ const k = todayKey(); if(!state.days[k]) state.days[k] = {moments:[]}; return state.days[k]; }
+
+const now = Date.now();
+const EXAMPLES = [
+  {id:"e1", t: now-3*3600e3, kind:"speech", text:"Good morning sweet boy, you are the best dog ever", example:true},
+  {id:"e2", t: now-2*3600e3, kind:"speech", text:"Ugh this traffic is terrible", example:true},
+  {id:"e3", t: now-1*3600e3, kind:"gift", text:"", example:true, heard:true}
+];
+
+function analyze(text){
+  const toks = text.toLowerCase().replace(/’/g,"'").match(/[a-z']+/g) || [];
+  const pos=[], neg=[];
+  toks.forEach((w,i)=>{
+    const isP = POSSET.has(w), isN = NEGSET.has(w);
+    if(!isP && !isN) return;
+    const flipped = NEGATORS.has(toks[i-1]) || NEGATORS.has(toks[i-2]);
+    if(isP) (flipped?neg:pos).push(w); else (flipped?pos:neg).push(w);
+  });
+  const laughs = (text.match(LAUGH_RE)||[]).length;
+  return {pos, neg, laughs};
+}
+function deltaOf(m){
+  if(m.kind==="laugh") return W.laugh;
+  if(m.kind==="gift") return W.gift;
+  const a = analyze(m.text);
+  return a.pos.length*W.pos + a.neg.length*W.neg + a.laughs*W.laugh;
+}
+const scoreOf = ms => Math.max(0, Math.min(100, 50 + ms.reduce((s,m)=>s+deltaOf(m),0)));
+
+const LEVELS = [
+  [0,"Little rain cloud","Rough patch. One kind word to someone can turn this around."],
+  [25,"Gray morning","A little cloudy. A thank you or a silly joke would help."],
+  [45,"Sunbeam","Steady and sweet. Keep it shining."],
+  [65,"Golden hour","You're glowing. People can feel it."],
+  [80,"Radiant","You're lighting up every room today."],
+  [95,"Pure sparkle","Off the charts. Fairy dust level positivity."]
+];
+const levelFor = s => LEVELS.filter(l=>s>=l[0]).pop();
+
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function highlight(text){
+  const a = analyze(text); const p=new Set(a.pos), n=new Set(a.neg);
+  return esc(text).replace(/[A-Za-z'’]+/g, w=>{
+    const l=w.toLowerCase().replace(/’/g,"'");
+    if(p.has(l)) return '<mark class="p">'+w+'</mark>';
+    if(n.has(l)) return '<mark class="n">'+w+'</mark>';
+    return w;
+  }).replace(LAUGH_RE, m=>'<mark class="p">'+m+'</mark>');
+}
+
+function render(){
+  const day = today();
+  const showEx = day.moments.length===0;
+  const list = showEx ? EXAMPLES : day.moments;
+  $("exBanner").hidden = !showEx;
+  const s = scoreOf(list);
+  $("score").textContent = s;
+  const lv = levelFor(s); $("mood").textContent = lv[1]; $("moodnote").textContent = lv[2];
+  $("needle").style.transform = "rotate("+((s/100)*180-90)+"deg)";
+  $("fillArc").style.strokeDashoffset = 100 - s;
+  $("haloArc").style.strokeDashoffset = 100 - s;
+  let P=0,N=0,L=0,G=0;
+  list.forEach(m=>{ if(m.kind==="laugh") L++; else if(m.kind==="gift") G++; else { const a=analyze(m.text); P+=a.pos.length; N+=a.neg.length; L+=a.laughs; } });
+  $("sPos").textContent=P; $("sNeg").textContent=N; $("sLaugh").textContent=L; $("sGift").textContent=G;
+
+  const ul = $("moments"); ul.innerHTML="";
+  list.slice().reverse().forEach(m=>{
+    const d = deltaOf(m);
+    const li = document.createElement("li"); li.className="moment";
+    const tm = new Date(m.t).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+    let body;
+    if(m.kind==="laugh") body='<span class="tag" style="color:var(--gold)">'+(m.heard?"Heard you laugh":"You laughed")+'</span>';
+    else if(m.kind==="gift") body='<span class="tag" style="color:var(--lilac)">You made someone laugh</span>';
+    else body='<span>"'+highlight(m.text)+'"</span>';
+    if(m.heard && !m.example && (m.kind==="laugh"||m.kind==="gift")){
+      body += '<button class="swap" type="button" data-id="'+m.id+'">'+(m.kind==="laugh"?"Someone else laughed":"Actually that was me")+'</button>';
+    }
+    if(m.example) body += '<span class="ex">Example</span>';
+    li.innerHTML = '<time>'+tm+'</time><div class="txt">'+body+'</div><span class="delta '+(d>0?"up":d<0?"down":"zero")+'">'+(d>0?"+":"")+d+'</span>';
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll(".swap").forEach(b=>b.onclick=()=>{
+    const m = today().moments.find(x=>x.id===b.dataset.id); if(!m) return;
+    const before = deltaOf(m); m.kind = m.kind==="laugh" ? "gift" : "laugh"; save(); render(); pop(deltaOf(m)-before);
+  });
+
+  const wk = $("week"); wk.innerHTML="";
+  for(let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const rec = state.days[dkey(d)];
+    const has = rec && rec.moments.length;
+    const v = has ? scoreOf(rec.moments) : (i===0 && showEx ? s : null);
+    const b = document.createElement("div");
+    b.className = "bar"+(i===0?" today":"")+(v===null?" none":"");
+    b.innerHTML = '<b>'+(v===null?"·":v)+'</b><i style="height:'+(v===null?4:Math.max(6,v))+'%"></i><span>'+d.toLocaleDateString([], {weekday:"short"})+'</span>';
+    wk.appendChild(b);
+  }
+}
+
+function pop(d){
+  if(!d) return;
+  const g = document.querySelector(".gauge");
+  const el = document.createElement("div"); el.className="pop";
+  el.textContent = (d>0?"+":"")+d;
+  el.style.color = d>0 ? "var(--rose)" : "var(--rain)";
+  el.style.left = (38+Math.random()*20)+"%"; el.style.top="28%";
+  g.appendChild(el); setTimeout(()=>el.remove(),1700);
+  if(d>0 && navigator.vibrate) try{ navigator.vibrate(30); }catch(e){}
+}
+function add(m){
+  m.t = Date.now(); m.id = "m"+m.t+Math.random().toString(36).slice(2,6);
+  today().moments.push(m); save(); render(); pop(deltaOf(m));
+}
+
+$("today").textContent = new Date().toLocaleDateString([], {weekday:"long", month:"long", day:"numeric"});
+$("laughBtn").onclick = ()=>add({kind:"laugh", text:""});
+$("madeBtn").onclick = ()=>add({kind:"gift", text:""});
+$("addBtn").onclick = ()=>{ const v=$("typeIn").value.trim(); if(!v) return; add({kind:"speech", text:v}); $("typeIn").value=""; };
+$("typeIn").addEventListener("keydown", e=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); $("addBtn").click(); } });
+
+function bindReset(){
+  $("resetWrap").innerHTML='<button id="resetBtn" type="button">Start today over</button>';
+  $("resetBtn").onclick = ()=>{
+    $("resetWrap").innerHTML='<div class="confirm">Clear everything from today? <button id="yesR" type="button">Yes, clear it</button><button id="noR" type="button">Keep it</button></div>';
+    $("yesR").onclick=()=>{ state.days[todayKey()]={moments:[]}; save(); bindReset(); render(); };
+    $("noR").onclick=bindReset;
+  };
+}
+
+/* ---------- Listening ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let listening=false, rec=null, wakeLock=null;
+let audioCtx=null, micStream=null, procNode=null, classifier=null, sampleBuf=[], bufLen=0, lastLaugh=0;
+
+function pill(id, text, cls){ const p=$(id); p.textContent=text; p.className="pill"+(cls?" "+cls:""); }
+function setStatus(t){ $("micStatus").textContent=t; }
+
+function startWords(){
+  if(!SR){ pill("pillWords","Word listener: not supported","warn"); return; }
+  rec = new SR(); rec.continuous = true; rec.interimResults = true; rec.lang = "en-US";
+  rec.onstart = ()=>pill("pillWords","Word listener: on","ok");
+  rec.onresult = e=>{
+    let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const r=e.results[i];
+      if(r.isFinal){ const t=r[0].transcript.trim(); if(t) add({kind:"speech", text:t}); }
+      else interim += r[0].transcript;
+    }
+    $("live").textContent = interim;
+  };
+  rec.onerror = e=>{
+    if(e.error==="not-allowed"||e.error==="service-not-allowed"){ pill("pillWords","Word listener: blocked","warn"); setStatus("Speech recognition is turned off. On your iPhone go to Settings, then Screen Time or Siri, and make sure Siri and Dictation are allowed."); }
+  };
+  rec.onend = ()=>{ if(listening){ setTimeout(()=>{ try{ rec.start(); }catch(e){} }, 250); } else pill("pillWords","Word listener: off"); };
+  try{ rec.start(); }catch(e){ pill("pillWords","Word listener: couldn't start","warn"); }
+}
+
+async function loadClassifier(){
+  if(classifier) return classifier;
+  pill("pillLaugh","Laugh detector: loading...");
+  const V = "0.10.14";
+  const mod = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@"+V+"/+esm");
+  const lib = mod.AudioClassifier ? mod : (mod.default || mod);
+  const files = await lib.FilesetResolver.forAudioTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-audio@"+V+"/wasm");
+  classifier = await lib.AudioClassifier.createFromOptions(files, {
+    baseOptions:{ modelAssetPath:"https://storage.googleapis.com/mediapipe-models/audio_classifier/yamnet/float32/1/yamnet.tflite" },
+    maxResults: 8
+  });
+  return classifier;
+}
+
+async function startLaughs(){
+  try{
+    await loadClassifier();
+    micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false}});
+    const AC = window.AudioContext || window.webkitAudioContext;
+    try{ audioCtx = new AC({sampleRate:16000}); }catch(e){ audioCtx = new AC(); }
+    const src = audioCtx.createMediaStreamSource(micStream);
+    procNode = audioCtx.createScriptProcessor(4096,1,1);
+    const need = Math.round(audioCtx.sampleRate * 0.975);
+    procNode.onaudioprocess = ev=>{
+      if(!listening || !classifier) return;
+      sampleBuf.push(new Float32Array(ev.inputBuffer.getChannelData(0))); bufLen += 4096;
+      if(bufLen < need) return;
+      const chunk = new Float32Array(bufLen); let o=0; sampleBuf.forEach(a=>{ chunk.set(a,o); o+=a.length; });
+      sampleBuf=[]; bufLen=0;
+      try{
+        const res = classifier.classify(chunk, audioCtx.sampleRate);
+        const cats = (res && res[0] && res[0].classifications[0].categories) || [];
+        const hit = cats.find(c=>LAUGH_LABELS.includes((c.categoryName||c.displayName||"").toLowerCase()) && c.score > 0.25);
+        if(hit && Date.now()-lastLaugh > 4000){
+          lastLaugh = Date.now();
+          add({kind:"laugh", text:"", heard:true});
+          setStatus("I heard a laugh! If it was someone else, tap \"Someone else laughed\" on it below.");
+        }
+      }catch(e){}
+    };
+    const mute = audioCtx.createGain(); mute.gain.value = 0;
+    src.connect(procNode); procNode.connect(mute); mute.connect(audioCtx.destination);
+    if(audioCtx.state==="suspended") await audioCtx.resume();
+    pill("pillLaugh","Laugh detector: on","ok");
+  }catch(e){
+    pill("pillLaugh","Laugh detector: unavailable","warn");
+  }
+}
+
+function stopLaughs(){
+  try{ procNode && procNode.disconnect(); }catch(e){}
+  try{ micStream && micStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+  try{ audioCtx && audioCtx.close(); }catch(e){}
+  procNode=null; micStream=null; audioCtx=null; sampleBuf=[]; bufLen=0;
+  pill("pillLaugh","Laugh detector: off");
+}
+
+async function keepAwake(){ try{ if("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); }catch(e){} }
+document.addEventListener("visibilitychange", ()=>{ if(listening && document.visibilityState==="visible") keepAwake(); });
+
+$("micBtn").onclick = async ()=>{
+  if(listening){
+    listening=false;
+    $("micBtn").classList.remove("on"); $("micBtn").setAttribute("aria-pressed","false"); $("micLabel").textContent="Start glowing";
+    try{ rec && rec.stop(); }catch(e){}
+    stopLaughs(); $("live").textContent="";
+    try{ wakeLock && wakeLock.release(); }catch(e){}
+    setStatus("Paused. Tap the button whenever you want to start again.");
+    return;
+  }
+  listening=true;
+  $("micBtn").classList.add("on"); $("micBtn").setAttribute("aria-pressed","true"); $("micLabel").textContent="Stop listening";
+  setStatus("Listening. Keep the app open and your screen on. I'll keep it awake for you.");
+  keepAwake();
+  await startLaughs();
+  startWords();
+};
+
+if("serviceWorker" in navigator && location.protocol==="https:"){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+bindReset();
+render();
+</script>
+</body>
+</html>
